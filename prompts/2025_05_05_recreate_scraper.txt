@@ -1,0 +1,23 @@
+# Deleted repo contents and attempted to regenerate.
+# Initial version started as webapp and then was modified for serverless, and
+# had a lot of webapp cruft
+
+$ Please create a Python script which will use selenium to scrape recent tweets from a list of users. Then send the tweets via email. Create a Github Actions config file to run the script daily. Please also create a script for local testing.
+
+To get started:
+
+Create a .env file with the following variables:
+TWITTER_USERS: Comma-separated list of Twitter usernames to monitor
+EMAIL_SENDER: Your email address
+EMAIL_PASSWORD: Your email password (for Gmail, use an App Password)
+EMAIL_RECIPIENT: Recipient email address
+SMTP_SERVER: SMTP server (defaults to Gmail)
+SMTP_PORT: SMTP port (defaults to 587)
+For local testing:
+Apply to README.md
+Run
+py
+For GitHub Actions:
+Add the environment variables as secrets in your GitHub repository
+The workflow will run daily at midnight UTC
+You can also trigger it manually using the "workflow_dispatch" event
