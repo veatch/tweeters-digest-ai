@@ -1,0 +1,57 @@
+name: Twitter Digest
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Runs at 12 PM UTC daily
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  run-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+          
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run digest
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: |
+          python -c "
+          from app.main import app
+          import asyncio
+          from app.scraper import TwitterScraper
+          from app.models import EmailConfig
+          
+          async def run_digest():
+              # Initialize scraper
+              scraper = TwitterScraper()
+              try:
+                  # Get tweets
+                  tweets = await app.get_tweets()
+                  
+                  # Send email
+                  config = EmailConfig(
+                      recipient_email='$RECIPIENT_EMAIL',
+                      frequency='daily'
+                  )
+                  await app.send_digest()
+              finally:
+                  scraper.close()
+          
+          asyncio.run(run_digest())
+          " 

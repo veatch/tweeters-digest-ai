@@ -1,0 +1,17 @@
+$ Please build a web app that will scrape recent tweets from a list of users and send an email with those tweets
+
+Let's break this down into steps and create a modern web application using Python with FastAPI for the backend and React for the frontend
+
+# I did not use any of this
+
+$ How could I scrape tweets from the web instead of using the API?
+
+I'll help you modify the application to scrape tweets directly from Twitter's web interface instead of using the API. We'll use selenium and beautifulsoup4 for web scraping.
+...
+Now, let's create a scraper module to handle the tweet scraping:
+...
+Now, let's update the main FastAPI application to use our scraper instead of the Twitter API:
+
+$ What are some free or very cheap options for running servless jobs like this on a daily schedule, and for sending a simple email?
+
+# Cursor and Claude both like Github Actions
