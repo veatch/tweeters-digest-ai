@@ -100,20 +100,26 @@ def login_to_twitter():
         page = context.new_page()
 
         try:
+            # Add random delays between actions to appear more human-like
+            def random_delay():
+                time.sleep(random.uniform(1, 3))
+
             # Navigate to Twitter login page
             print("Navigating to Twitter login page...")
             page.goto('https://twitter.com/login')
+            random_delay()
             
             # Wait for the login form to be visible
             print("Waiting for username input field...")
             page.wait_for_selector('input[autocomplete="username"]')
             
-            # Enter username/email
+            # Enter username/email with human-like typing
             print("Entering username...")
-            page.fill('input[autocomplete="username"]', os.getenv('TWITTER_USERNAME'))
+            username = os.getenv('TWITTER_USERNAME')
+            for char in username:
+                page.type('input[autocomplete="username"]', char, delay=random.uniform(50, 150))
             
-            # Add a small delay to ensure the field is properly filled
-            time.sleep(1)
+            random_delay()
             
             # Check if the Next button is visible and clickable
             print("Looking for Next button...")
@@ -123,14 +129,19 @@ def login_to_twitter():
                 next_button.click()
             else:
                 print("Next button is not visible!")
-                # Take a screenshot for debugging
                 page.screenshot(path="debug_screenshot.png")
                 print("Screenshot saved as debug_screenshot.png")
             
-            # Wait for password field and enter password
+            random_delay()
+            
+            # Wait for password field and enter password with human-like typing
             print("Waiting for password field...")
             page.wait_for_selector('input[type="password"]')
-            page.fill('input[type="password"]', os.getenv('TWITTER_PASSWORD'))
+            password = os.getenv('TWITTER_PASSWORD')
+            for char in password:
+                page.type('input[type="password"]', char, delay=random.uniform(50, 150))
+            
+            random_delay()
             
             # Click login button
             print("Clicking login button...")
