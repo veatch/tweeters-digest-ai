@@ -56,19 +56,17 @@ def send_email(subject, message):
 
 def login_to_twitter():
     with sync_playwright() as p:
-        # Launch browser (using Chromium as it's the most stable)
+        # Launch browser with more realistic settings
         browser = p.chromium.launch(
             headless=True,
-            # Replace above with lines below to debug locally
-            #headless=False,
-            #devtools=True  # Enable DevTools
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--disable-site-isolation-trials'
+            ]
         )
-        # Also, you can uncomment line below to enable Playwright Inspector,
-        # which can help with identifying the selectors for elements on the page
-        # page.pause()
         context = browser.new_context()
         page = context.new_page()
-
 
         try:
             # Navigate to Twitter login page
