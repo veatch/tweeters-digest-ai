@@ -9,9 +9,18 @@ load_dotenv()
 def login_to_twitter():
     with sync_playwright() as p:
         # Launch browser (using Chromium as it's the most stable)
-        browser = p.chromium.launch(headless=False)  # Set to True in production
+        browser = p.chromium.launch(
+            headless=True,
+            # Replace above with lines below to debug locally
+            #headless=False,
+            #devtools=True  # Enable DevTools
+        )
+        # Also, you can uncomment line below to enable Playwright Inspector,
+        # which can help with identifying the selectors for elements on the page
+        # page.pause()
         context = browser.new_context()
         page = context.new_page()
+
 
         try:
             # Navigate to Twitter login page
@@ -31,7 +40,7 @@ def login_to_twitter():
             
             # Check if the Next button is visible and clickable
             print("Looking for Next button...")
-            next_button = page.locator('div[role="button"]:has-text("Next")')
+            next_button = page.get_by_role("button", name="Next")
             if next_button.is_visible():
                 print("Next button is visible, attempting to click...")
                 next_button.click()
@@ -48,6 +57,9 @@ def login_to_twitter():
             
             # Click login button
             print("Clicking login button...")
+            login_button = page.get_by_role("button", name="Log in")
+            if login_button.is_visible():
+                login_button.click()
             page.click('div[role="button"]:has-text("Log in")')
             
             # Wait for successful login (wait for home timeline)
