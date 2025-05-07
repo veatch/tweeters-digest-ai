@@ -1,38 +1,34 @@
-name: Daily Twitter Digest
+name: Twitter Digest
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Run at midnight UTC every day
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '0 8 * * *'  # Runs at 8 AM UTC (4 AM ET during standard time, 5 AM ET during daylight savings)
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   run-digest:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-22.04  # Matches the jammy (22.04) base image in our Dockerfile
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Run Twitter Digest
-      env:
-        TWITTER_USERS: ${{ secrets.TWITTER_USERS }}
-        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-        EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-        SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-        SMTP_PORT: ${{ secrets.SMTP_PORT }}
-      run: python tweet_digest.py 
+      - uses: actions/checkout@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      
+      - name: Build and run Docker container
+        env:
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          TWITTER_USERNAME: ${{ secrets.TWITTER_USERNAME }}
+          TWITTER_PASSWORD: ${{ secrets.TWITTER_PASSWORD }}
+        run: |
+          docker build -t twitter-digest .
+          docker run --rm \
+            -e MAILGUN_DOMAIN=$MAILGUN_DOMAIN \
+            -e MAILGUN_API_KEY=$MAILGUN_API_KEY \
+            -e FROM_EMAIL=$FROM_EMAIL \
+            -e TO_EMAIL=$TO_EMAIL \
+            -e TWITTER_USERNAME=$TWITTER_USERNAME \
+            -e TWITTER_PASSWORD=$TWITTER_PASSWORD \
+            twitter-digest 
