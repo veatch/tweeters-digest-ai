@@ -8,6 +8,7 @@ on:
 jobs:
   run-digest:
     runs-on: ubuntu-22.04  # Matches the jammy (22.04) base image in our Dockerfile
+    environment: Tweeter Digest Env
     steps:
       - uses: actions/checkout@v2
       
