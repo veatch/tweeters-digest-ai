@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 import time
 import requests
 
-# Load environment variables
-load_dotenv()
+# Try to load from .env file, but don't fail if it doesn't exist
+load_dotenv(override=True)
 
 def send_email(subject, message):
     """
@@ -16,8 +16,15 @@ def send_email(subject, message):
     from_email = os.getenv('FROM_EMAIL')
     to_email = os.getenv('TO_EMAIL')
 
-    if not all([domain, api_key, from_email, to_email]):
-        print("Please set all required Mailgun environment variables")
+    # Debug: Print which variables are missing
+    missing_vars = []
+    if not domain: missing_vars.append('MAILGUN_DOMAIN')
+    if not api_key: missing_vars.append('MAILGUN_API_KEY')
+    if not from_email: missing_vars.append('FROM_EMAIL')
+    if not to_email: missing_vars.append('TO_EMAIL')
+    
+    if missing_vars:
+        print(f"Missing environment variables: {', '.join(missing_vars)}")
         return False
 
     response = requests.post(

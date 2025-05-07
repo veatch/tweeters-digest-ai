@@ -23,6 +23,11 @@ jobs:
           TWITTER_USERNAME: ${{ secrets.TWITTER_USERNAME }}
           TWITTER_PASSWORD: ${{ secrets.TWITTER_PASSWORD }}
         run: |
+          # Debug: Print environment variable names (but not values) to verify they exist
+          echo "Checking environment variables..."
+          env | grep -E 'MAILGUN|FROM|TO|TWITTER' | cut -d= -f1
+          
+          # Build the Docker image
           docker build -t twitter-digest .
           docker run --rm \
             -e MAILGUN_DOMAIN=$MAILGUN_DOMAIN \
