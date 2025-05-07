@@ -2,9 +2,42 @@ import os
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 import time
+import requests
 
 # Load environment variables
 load_dotenv()
+
+def send_email(subject, message):
+    """
+    Send an email using Mailgun API
+    """
+    domain = os.getenv('MAILGUN_DOMAIN')
+    api_key = os.getenv('MAILGUN_API_KEY')
+    from_email = os.getenv('FROM_EMAIL')
+    to_email = os.getenv('TO_EMAIL')
+
+    if not all([domain, api_key, from_email, to_email]):
+        print("Please set all required Mailgun environment variables")
+        return False
+
+    response = requests.post(
+        f"https://api.mailgun.net/v3/{domain}/messages",
+        auth=("api", api_key),
+        data={
+            "from": from_email,
+            "to": to_email,
+            "subject": subject,
+            "text": message
+        }
+    )
+
+    if response.status_code == 200:
+        print("Email sent successfully!")
+        return True
+    else:
+        print(f"Failed to send email. Status code: {response.status_code}")
+        print(f"Response: {response.text}")
+        return False
 
 def login_to_twitter():
     with sync_playwright() as p:
@@ -89,4 +122,8 @@ if __name__ == "__main__":
         print("Please set TWITTER_USERNAME and TWITTER_PASSWORD environment variables")
         exit(1)
     
-    login_to_twitter() 
+    # Test email sending
+    send_email("Hello from Twitter Digest", "This is a test email from the Twitter Digest application!")
+    
+    # disable scraping for now, seeing if email works through Github Actions
+    #login_to_twitter() 

@@ -1,0 +1,1 @@
+$ Let's add a function to send an email using Mailgun. For now just send a hello world message. Later we'll update it to send a list of tweets
