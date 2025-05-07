@@ -65,7 +65,23 @@ def login_to_twitter():
                 '--disable-site-isolation-trials'
             ]
         )
-        context = browser.new_context()
+        
+        # Create a more realistic browser context
+        context = browser.new_context(
+            viewport={'width': 1920, 'height': 1080},
+            user_agent=random.choice(USER_AGENTS),
+            locale='en-US',
+            timezone_id='America/New_York',
+            geolocation={'latitude': 40.7128, 'longitude': -74.0060},  # New York City
+            permissions=['geolocation'],
+            color_scheme='light',
+            device_scale_factor=1,
+            has_touch=False,
+            is_mobile=False,
+            java_script_enabled=True,
+            accept_downloads=True
+        )
+
         page = context.new_page()
 
         try:
