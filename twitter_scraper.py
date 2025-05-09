@@ -4,6 +4,14 @@ from dotenv import load_dotenv
 import time
 import requests
 import random
+from datetime import datetime
+
+DEBUG_MODE = False
+
+# Enable Playwright Inspector when in debug mode
+# Note that you may need to click the play button in the inspector to start the session
+if DEBUG_MODE:
+    os.environ['PWDEBUG'] = '1'
 
 # Try to load from .env file, but don't fail if it doesn't exist
 load_dotenv(override=True)
@@ -15,9 +23,9 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 ]
 
-def send_email(subject, message):
+def send_email(subject, tweets):
     """
-    Send an email using Mailgun API
+    Send an email using Mailgun API with formatted tweet content
     """
     domain = os.getenv('MAILGUN_DOMAIN')
     api_key = os.getenv('MAILGUN_API_KEY')
@@ -34,6 +42,14 @@ def send_email(subject, message):
     if missing_vars:
         print(f"Missing environment variables: {', '.join(missing_vars)}")
         return False
+
+    # Format tweets into a nice email message
+    message = "Here are the latest tweets from @veatch:\n\n"
+    for tweet in tweets:
+        message += f"Tweet from {tweet['date']}:\n"
+        message += f"{tweet['text']}\n"
+        message += f"Likes: {tweet['likes']} | Retweets: {tweet['retweets']}\n"
+        message += "-" * 50 + "\n\n"
 
     response = requests.post(
         f"https://api.mailgun.net/v3/{domain}/messages",
@@ -54,11 +70,50 @@ def send_email(subject, message):
         print(f"Response: {response.text}")
         return False
 
+def scrape_tweets(page, username="veatch", num_tweets=5):
+    """
+    Scrape tweets from a specific user
+    """
+    print(f"Navigating to @{username}'s profile...")
+    page.goto(f'https://twitter.com/{username}')
+    time.sleep(3)  # Wait for page to load
+
+    tweets = []
+    tweet_elements = page.query_selector_all('article[data-testid="tweet"]')
+    
+    for tweet in tweet_elements[:num_tweets]:
+        try:
+            # Get tweet text
+            text_element = tweet.query_selector('div[data-testid="tweetText"]')
+            text = text_element.inner_text() if text_element else "No text content"
+
+            # Get engagement metrics
+            metrics = tweet.query_selector_all('div[data-testid="reply"] span, div[data-testid="retweet"] span, div[data-testid="like"] span')
+            likes = metrics[2].inner_text() if len(metrics) > 2 else "0"
+            retweets = metrics[1].inner_text() if len(metrics) > 1 else "0"
+
+            # Get date
+            date_element = tweet.query_selector('time')
+            date = date_element.get_attribute('datetime') if date_element else datetime.now().isoformat()
+
+            tweets.append({
+                'text': text,
+                'likes': likes,
+                'retweets': retweets,
+                'date': date
+            })
+        except Exception as e:
+            print(f"Error scraping tweet: {str(e)}")
+            continue
+
+    return tweets
+
 def login_to_twitter():
     with sync_playwright() as p:
         # Launch browser with more realistic settings
         browser = p.chromium.launch(
-            headless=True,
+            headless=not DEBUG_MODE,
+            devtools=DEBUG_MODE,
             args=[
                 '--disable-blink-features=AutomationControlled',
                 '--disable-features=IsolateOrigins,site-per-process',
@@ -133,16 +188,26 @@ def login_to_twitter():
             login_button = page.get_by_role("button", name="Log in")
             if login_button.is_visible():
                 login_button.click()
-            page.click('div[role="button"]:has-text("Log in")')
+
+            # This enables Playwright Inspector, which can help with identifying the
+            # selectors for elements on the page
+            #if DEBUG_MODE:
+                #page.pause()
             
             # Wait for successful login (wait for home timeline)
             print("Waiting for successful login...")
-            page.wait_for_selector('div[data-testid="primaryColumn"]')
+            page.get_by_test_id('AppTabBar_Home_Link').wait_for()
             
             print("Successfully logged in to Twitter!")
             
-            # Keep the browser open for 30 seconds to verify login
-            page.wait_for_timeout(30000)
+            # Scrape tweets
+            tweets = scrape_tweets(page)
+            
+            # Send email with tweets
+            if tweets:
+                send_email("Latest Tweets from @veatch", tweets)
+            else:
+                print("No tweets were scraped!")
             
         except Exception as e:
             print(f"An error occurred: {str(e)}")
@@ -162,8 +227,4 @@ if __name__ == "__main__":
         print("Please set TWITTER_USERNAME and TWITTER_PASSWORD environment variables")
         exit(1)
     
-    # Test email sending
-    send_email("Hello from Twitter Digest", "This is a test email from the Twitter Digest application!")
-    
-    # disable scraping for now, seeing if email works through Github Actions
-    #login_to_twitter() 
+    login_to_twitter() 
