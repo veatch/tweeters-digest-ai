@@ -1,20 +1,9 @@
 import os
-from playwright.sync_api import sync_playwright
-from dotenv import load_dotenv
 import time
-import requests
 import random
 from datetime import datetime
-
-DEBUG_MODE = False
-
-# Enable Playwright Inspector when in debug mode
-# Note that you may need to click the play button in the inspector to start the session
-if DEBUG_MODE:
-    os.environ['PWDEBUG'] = '1'
-
-# Try to load from .env file, but don't fail if it doesn't exist
-load_dotenv(override=True)
+from typing import List, Dict
+from playwright.sync_api import Page, sync_playwright
 
 # Common user agents for modern browsers
 USER_AGENTS = [
@@ -23,66 +12,37 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 ]
 
-def send_email(subject, tweets):
-    """
-    Send an email using Mailgun API with formatted tweet content
-    """
-    domain = os.getenv('MAILGUN_DOMAIN')
-    api_key = os.getenv('MAILGUN_API_KEY')
-    from_email = os.getenv('FROM_EMAIL')
-    to_email = os.getenv('TO_EMAIL')
+def debug_log(message: str, debug_mode: bool = False) -> None:
+    """Helper function to print debug messages only when in debug mode"""
+    if debug_mode:
+        print(f"[DEBUG] {message}")
 
-    # Debug: Print which variables are missing
-    missing_vars = []
-    if not domain: missing_vars.append('MAILGUN_DOMAIN')
-    if not api_key: missing_vars.append('MAILGUN_API_KEY')
-    if not from_email: missing_vars.append('FROM_EMAIL')
-    if not to_email: missing_vars.append('TO_EMAIL')
-    
-    if missing_vars:
-        print(f"Missing environment variables: {', '.join(missing_vars)}")
-        return False
-
-    # Format tweets into a nice email message
-    message = "Here are the latest tweets from @veatch:\n\n"
-    for tweet in tweets:
-        message += f"Tweet from {tweet['date']}:\n"
-        message += f"{tweet['text']}\n"
-        message += f"Likes: {tweet['likes']} | Retweets: {tweet['retweets']}\n"
-        message += "-" * 50 + "\n\n"
-
-    response = requests.post(
-        f"https://api.mailgun.net/v3/{domain}/messages",
-        auth=("api", api_key),
-        data={
-            "from": from_email,
-            "to": to_email,
-            "subject": subject,
-            "text": message
-        }
-    )
-
-    if response.status_code == 200:
-        print("Email sent successfully!")
-        return True
-    else:
-        print(f"Failed to send email. Status code: {response.status_code}")
-        print(f"Response: {response.text}")
-        return False
-
-def scrape_tweets(page, username="veatch", num_tweets=5):
+def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, debug_mode: bool = False) -> List[Dict[str, str]]:
     """
     Scrape tweets from a specific user
+    
+    Args:
+        page: Playwright page object
+        username: Twitter username to scrape
+        num_tweets: Number of tweets to scrape
+        debug_mode: Whether to run in debug mode with additional logging
+        
+    Returns:
+        List of tweet dictionaries containing text, likes, retweets, and date
     """
+    debug_log(f"Starting tweet scraping for @{username}", debug_mode)
     print(f"Navigating to @{username}'s profile...")
     page.goto(f'https://twitter.com/{username}')
     time.sleep(3)  # Wait for page to load
 
     tweets = []
     tweet_elements = page.query_selector_all('article[data-testid="tweet"]')
+    debug_log(f"Found {len(tweet_elements)} tweet elements", debug_mode)
     
-    for tweet in tweet_elements[:num_tweets]:
+    for i, tweet in enumerate(tweet_elements[:num_tweets], 1):
         try:
+            debug_log(f"Processing tweet {i}/{num_tweets}", debug_mode)
+            
             # Get tweet text
             text_element = tweet.query_selector('div[data-testid="tweetText"]')
             text = text_element.inner_text() if text_element else "No text content"
@@ -102,18 +62,32 @@ def scrape_tweets(page, username="veatch", num_tweets=5):
                 'retweets': retweets,
                 'date': date
             })
+            debug_log(f"Successfully processed tweet {i}", debug_mode)
         except Exception as e:
             print(f"Error scraping tweet: {str(e)}")
+            debug_log(f"Failed to process tweet {i}: {str(e)}", debug_mode)
             continue
 
+    debug_log(f"Successfully scraped {len(tweets)} tweets", debug_mode)
     return tweets
 
-def login_to_twitter():
+def login_to_twitter(debug_mode: bool = False) -> List[Dict[str, str]]:
+    """
+    Login to Twitter and scrape tweets
+    
+    Args:
+        debug_mode: Whether to run in debug mode with browser visible and additional logging
+        
+    Returns:
+        List of scraped tweets
+    """
+    debug_log("Initializing Playwright", debug_mode)
     with sync_playwright() as p:
         # Launch browser with more realistic settings
+        debug_log("Launching browser", debug_mode)
         browser = p.chromium.launch(
-            headless=not DEBUG_MODE,
-            devtools=DEBUG_MODE,
+            headless=not debug_mode,
+            devtools=debug_mode,
             args=[
                 '--disable-blink-features=AutomationControlled',
                 '--disable-features=IsolateOrigins,site-per-process',
@@ -122,6 +96,7 @@ def login_to_twitter():
         )
         
         # Create a more realistic browser context
+        debug_log("Creating browser context", debug_mode)
         context = browser.new_context(
             viewport={'width': 1920, 'height': 1080},
             user_agent=random.choice(USER_AGENTS),
@@ -142,7 +117,9 @@ def login_to_twitter():
         try:
             # Add random delays between actions to appear more human-like
             def random_delay():
-                time.sleep(random.uniform(1, 3))
+                delay = random.uniform(1, 3)
+                debug_log(f"Random delay: {delay:.2f}s", debug_mode)
+                time.sleep(delay)
 
             # Navigate to Twitter login page
             print("Navigating to Twitter login page...")
@@ -188,11 +165,6 @@ def login_to_twitter():
             login_button = page.get_by_role("button", name="Log in")
             if login_button.is_visible():
                 login_button.click()
-
-            # This enables Playwright Inspector, which can help with identifying the
-            # selectors for elements on the page
-            #if DEBUG_MODE:
-                #page.pause()
             
             # Wait for successful login (wait for home timeline)
             print("Waiting for successful login...")
@@ -201,30 +173,19 @@ def login_to_twitter():
             print("Successfully logged in to Twitter!")
             
             # Scrape tweets
-            tweets = scrape_tweets(page)
-            
-            # Send email with tweets
-            if tweets:
-                send_email("Latest Tweets from @veatch", tweets)
-            else:
-                print("No tweets were scraped!")
+            return scrape_tweets(page, debug_mode=debug_mode)
             
         except Exception as e:
             print(f"An error occurred: {str(e)}")
+            debug_log(f"Error during Twitter login: {str(e)}", debug_mode)
             # Take a screenshot on error
             try:
                 page.screenshot(path="error_screenshot.png")
                 print("Error screenshot saved as error_screenshot.png")
             except:
                 print("Could not save error screenshot")
+            return []
         
         finally:
-            browser.close()
-
-if __name__ == "__main__":
-    # Check if environment variables are set
-    if not os.getenv('TWITTER_USERNAME') or not os.getenv('TWITTER_PASSWORD'):
-        print("Please set TWITTER_USERNAME and TWITTER_PASSWORD environment variables")
-        exit(1)
-    
-    login_to_twitter() 
+            debug_log("Closing browser", debug_mode)
+            browser.close() 
