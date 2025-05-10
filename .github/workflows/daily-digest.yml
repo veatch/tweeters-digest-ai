@@ -23,6 +23,14 @@ jobs:
         restore-keys: |
           tweet-state-${{ runner.os }}-
     
+    - name: Cache Twitter cookies
+      uses: actions/cache@v3
+      with:
+        path: twitter_cookies.json
+        key: twitter-cookies-${{ runner.os }}
+        restore-keys: |
+          twitter-cookies-${{ runner.os }}-
+    
     - name: Build and run Docker container
       env:
         MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
@@ -39,9 +47,10 @@ jobs:
         # Build the Docker image
         docker build -t twitter-digest .
         
-        # Run the container with state file mounted
+        # Run the container with state files mounted
         docker run --rm \
           -v "$(pwd)/last_tweet_id.json:/app/last_tweet_id.json" \
+          -v "$(pwd)/twitter_cookies.json:/app/twitter_cookies.json" \
           -e MAILGUN_DOMAIN=$MAILGUN_DOMAIN \
           -e MAILGUN_API_KEY=$MAILGUN_API_KEY \
           -e FROM_EMAIL=$FROM_EMAIL \
