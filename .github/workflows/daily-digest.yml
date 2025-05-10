@@ -1,8 +1,8 @@
 name: Twitter Digest
 
 on:
-  schedule:
-    - cron: '0 8 * * *'  # Runs at 8 AM UTC (4 AM ET during standard time, 5 AM ET during daylight savings)
+  #schedule:
+    #- cron: '0 8 * * *'  # Runs at 8 AM UTC (4 AM ET during standard time, 5 AM ET during daylight savings)
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
