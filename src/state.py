@@ -2,7 +2,8 @@ import json
 import os
 from pathlib import Path
 
-STATE_FILE = Path("last_tweet_id.json")
+# Use absolute path for state file in the top-level directory
+STATE_FILE = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / "last_tweet_id.json"
 
 def get_last_tweet_id() -> str | None:
     """Get the last processed tweet ID from the state file."""
