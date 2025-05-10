@@ -10,7 +10,7 @@ RUN pip install -r requirements.txt
 RUN playwright install chromium
 
 # Copy the rest of the application
-COPY . .
+COPY src/ ./src/
 
 # Run the script
-CMD ["python", "twitter_scraper.py"] 
+CMD ["python", "src/main.py"] 

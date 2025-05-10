@@ -17,7 +17,7 @@ def debug_log(message: str, debug_mode: bool = False) -> None:
     if debug_mode:
         print(f"[DEBUG] {message}")
 
-def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, debug_mode: bool = False) -> List[Dict[str, str]]:
+def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, since_id: str | None = None, debug_mode: bool = False) -> List[Dict[str, str]]:
     """
     Scrape tweets from a specific user
     
@@ -25,10 +25,11 @@ def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, deb
         page: Playwright page object
         username: Twitter username to scrape
         num_tweets: Number of tweets to scrape
+        since_id: Only scrape tweets newer than this ID
         debug_mode: Whether to run in debug mode with additional logging
         
     Returns:
-        List of tweet dictionaries containing text, likes, retweets, and date
+        List of tweet dictionaries containing text, likes, retweets, date, and id
     """
     debug_log(f"Starting tweet scraping for @{username}", debug_mode)
     print(f"Navigating to @{username}'s profile...")
@@ -42,6 +43,20 @@ def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, deb
     for i, tweet in enumerate(tweet_elements[:num_tweets], 1):
         try:
             debug_log(f"Processing tweet {i}/{num_tweets}", debug_mode)
+            
+            # Get tweet ID from the article element
+            tweet_id = tweet.get_attribute('data-tweet-id')
+            if not tweet_id:
+                # Try to get ID from the tweet link
+                tweet_link = tweet.query_selector('a[href*="/status/"]')
+                if tweet_link:
+                    href = tweet_link.get_attribute('href')
+                    tweet_id = href.split('/status/')[-1].split('?')[0]
+            
+            # Skip tweets older than since_id if provided
+            if since_id and tweet_id and tweet_id <= since_id:
+                debug_log(f"Skipping tweet {tweet_id} as it's older than {since_id}", debug_mode)
+                continue
             
             # Get tweet text
             text_element = tweet.query_selector('div[data-testid="tweetText"]')
@@ -57,6 +72,7 @@ def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, deb
             date = date_element.get_attribute('datetime') if date_element else datetime.now().isoformat()
 
             tweets.append({
+                'id': tweet_id,
                 'text': text,
                 'likes': likes,
                 'retweets': retweets,
@@ -71,12 +87,13 @@ def scrape_tweets(page: Page, username: str = "veatch", num_tweets: int = 5, deb
     debug_log(f"Successfully scraped {len(tweets)} tweets", debug_mode)
     return tweets
 
-def login_to_twitter(debug_mode: bool = False) -> List[Dict[str, str]]:
+def login_to_twitter(debug_mode: bool = False, since_id: str | None = None) -> List[Dict[str, str]]:
     """
     Login to Twitter and scrape tweets
     
     Args:
         debug_mode: Whether to run in debug mode with browser visible and additional logging
+        since_id: Only scrape tweets newer than this ID
         
     Returns:
         List of scraped tweets
@@ -173,7 +190,7 @@ def login_to_twitter(debug_mode: bool = False) -> List[Dict[str, str]]:
             print("Successfully logged in to Twitter!")
             
             # Scrape tweets
-            return scrape_tweets(page, debug_mode=debug_mode)
+            return scrape_tweets(page, debug_mode=debug_mode, since_id=since_id)
             
         except Exception as e:
             print(f"An error occurred: {str(e)}")

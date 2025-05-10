@@ -1,1 +1,5 @@
 .env
+last_tweet_id.json
+*.png
+*.pyc
+__pycache__/

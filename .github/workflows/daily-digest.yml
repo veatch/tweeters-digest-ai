@@ -10,31 +10,42 @@ jobs:
     runs-on: ubuntu-22.04  # Matches the jammy (22.04) base image in our Dockerfile
     environment: Tweeter Digest Env
     steps:
-      - uses: actions/checkout@v2
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      
-      - name: Build and run Docker container
-        env:
-          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
-          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
-          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-          TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          TWITTER_USERNAME: ${{ secrets.TWITTER_USERNAME }}
-          TWITTER_PASSWORD: ${{ secrets.TWITTER_PASSWORD }}
-        run: |
-          # Debug: Print environment variable names (but not values) to verify they exist
-          echo "Checking environment variables..."
-          env | grep -E 'MAILGUN|FROM|TO|TWITTER' | cut -d= -f1
-          
-          # Build the Docker image
-          docker build -t twitter-digest .
-          docker run --rm \
-            -e MAILGUN_DOMAIN=$MAILGUN_DOMAIN \
-            -e MAILGUN_API_KEY=$MAILGUN_API_KEY \
-            -e FROM_EMAIL=$FROM_EMAIL \
-            -e TO_EMAIL=$TO_EMAIL \
-            -e TWITTER_USERNAME=$TWITTER_USERNAME \
-            -e TWITTER_PASSWORD=$TWITTER_PASSWORD \
-            twitter-digest 
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    
+    - name: Cache tweet state
+      uses: actions/cache@v3
+      with:
+        path: last_tweet_id.json
+        key: tweet-state-${{ runner.os }}
+        restore-keys: |
+          tweet-state-${{ runner.os }}-
+    
+    - name: Build and run Docker container
+      env:
+        MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+        MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+        FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        TWITTER_USERNAME: ${{ secrets.TWITTER_USERNAME }}
+        TWITTER_PASSWORD: ${{ secrets.TWITTER_PASSWORD }}
+      run: |
+        # Debug: Print environment variable names (but not values) to verify they exist
+        echo "Checking environment variables..."
+        env | grep -E 'MAILGUN|FROM|TO|TWITTER' | cut -d= -f1
+        
+        # Build the Docker image
+        docker build -t twitter-digest .
+        
+        # Run the container with state file mounted
+        docker run --rm \
+          -v "$(pwd)/last_tweet_id.json:/app/last_tweet_id.json" \
+          -e MAILGUN_DOMAIN=$MAILGUN_DOMAIN \
+          -e MAILGUN_API_KEY=$MAILGUN_API_KEY \
+          -e FROM_EMAIL=$FROM_EMAIL \
+          -e TO_EMAIL=$TO_EMAIL \
+          -e TWITTER_USERNAME=$TWITTER_USERNAME \
+          -e TWITTER_PASSWORD=$TWITTER_PASSWORD \
+          twitter-digest 
