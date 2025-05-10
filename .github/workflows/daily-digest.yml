@@ -44,6 +44,10 @@ jobs:
         echo "Checking environment variables..."
         env | grep -E 'MAILGUN|FROM|TO|TWITTER' | cut -d= -f1
         
+        # Ensure state files exist and are files, not directories
+        touch last_tweet_id.json
+        touch twitter_cookies.json
+        
         # Build the Docker image
         docker build -t twitter-digest .
         
