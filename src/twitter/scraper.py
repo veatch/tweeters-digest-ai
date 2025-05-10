@@ -1,9 +1,11 @@
 import os
 import time
 import random
+import json
 from datetime import datetime
 from typing import List, Dict
 from playwright.sync_api import Page, sync_playwright
+from pathlib import Path
 
 # Common user agents for modern browsers
 USER_AGENTS = [
@@ -11,6 +13,8 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 ]
+
+COOKIES_FILE = Path("twitter_cookies.json")
 
 def debug_log(message: str, debug_mode: bool = False) -> None:
     """Helper function to print debug messages only when in debug mode"""
@@ -132,7 +136,26 @@ def login_to_twitter(debug_mode: bool = False, since_id: str | None = None) -> L
         page = context.new_page()
 
         try:
-            # Add random delays between actions to appear more human-like
+            # Try to load cookies if they exist
+            if COOKIES_FILE.exists():
+                debug_log("Loading saved cookies", debug_mode)
+                with open(COOKIES_FILE, 'r') as f:
+                    cookies = json.load(f)
+                context.add_cookies(cookies)
+                
+                # Try to access Twitter with saved cookies
+                print("Attempting to access Twitter with saved cookies...")
+                page.goto('https://twitter.com/home')
+                time.sleep(3)
+                
+                # Check if we're actually logged in
+                if page.get_by_test_id('AppTabBar_Home_Link').is_visible():
+                    print("Successfully logged in using saved cookies!")
+                    return scrape_tweets(page, debug_mode=debug_mode, since_id=since_id)
+                else:
+                    print("Saved cookies are invalid, proceeding with password login...")
+            
+            # If we get here, we need to do a password login
             def random_delay():
                 delay = random.uniform(1, 3)
                 debug_log(f"Random delay: {delay:.2f}s", debug_mode)
@@ -188,6 +211,12 @@ def login_to_twitter(debug_mode: bool = False, since_id: str | None = None) -> L
             page.get_by_test_id('AppTabBar_Home_Link').wait_for()
             
             print("Successfully logged in to Twitter!")
+            
+            # Save cookies after successful login
+            debug_log("Saving cookies for future use", debug_mode)
+            cookies = context.cookies()
+            with open(COOKIES_FILE, 'w') as f:
+                json.dump(cookies, f)
             
             # Scrape tweets
             return scrape_tweets(page, debug_mode=debug_mode, since_id=since_id)
